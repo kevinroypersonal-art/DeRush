@@ -1,10 +1,15 @@
 // Tells Convex how to validate Clerk-issued JWTs.
-// CLERK_JWT_ISSUER_DOMAIN must be set in the Convex deployment environment
-// (via `npx convex env set CLERK_JWT_ISSUER_DOMAIN ...` or the dashboard).
+// Override per-deployment by setting CLERK_JWT_ISSUER_DOMAIN in the Convex env
+// (`npx convex env set CLERK_JWT_ISSUER_DOMAIN ...` or the dashboard); the
+// fallback below is this project's Clerk issuer so it works out of the box.
+const ISSUER_DOMAIN =
+  process.env.CLERK_JWT_ISSUER_DOMAIN ??
+  "https://valid-minnow-88.clerk.accounts.dev";
+
 export default {
   providers: [
     {
-      domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
+      domain: ISSUER_DOMAIN,
       applicationID: "convex",
     },
   ],
