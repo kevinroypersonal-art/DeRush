@@ -681,10 +681,10 @@ function AgentReview() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-semibold">Your agents</h1>
+      <h1 className="mb-1 text-2xl font-semibold">Your Derush Stack</h1>
       <p className="mb-6 text-sm text-neutral-400">
-        These three agents are the heart of DeRush. Edit any prompt, then finish
-        to activate them.
+        Your stack is these three agents — the heart of DeRush. Edit any prompt,
+        then finish to activate the stack.
       </p>
       <div className="space-y-4">
         {ordered.map((a) => (

@@ -1,15 +1,45 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { Authenticated, AuthLoading } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+const STATUS_LABEL: Record<string, string> = {
+  draft: "No transcript yet",
+  uploaded: "Transcript uploaded",
+  parsing: "Parsing…",
+  parsed: "Ready to edit",
+  generating: "Generating edit…",
+  ready: "Edit ready",
+  error: "Error",
+};
+
+function StatusBadge({ status }: { status?: string }) {
+  const s = status ?? "draft";
+  const tone =
+    s === "ready"
+      ? "border-green-800 text-green-400"
+      : s === "error"
+        ? "border-red-800 text-red-400"
+        : "border-neutral-700 text-neutral-400";
+  return (
+    <span
+      className={`rounded-full border px-2 py-0.5 text-[10px] ${tone}`}
+    >
+      {STATUS_LABEL[s] ?? s}
+    </span>
+  );
+}
+
 function NewProjectForm() {
   const createProject = useMutation(api.projects.create);
+  const stack = useQuery(api.projects.getDefaultStack);
+  const router = useRouter();
   const [name, setName] = useState("");
-  const [style, setStyle] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,12 +49,10 @@ function NewProjectForm() {
     setSubmitting(true);
     setError(null);
     try {
-      await createProject({ name, style });
-      setName("");
-      setStyle("");
+      const id = await createProject({ name });
+      router.push(`/dashboard/projects/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -36,28 +64,24 @@ function NewProjectForm() {
     >
       <div>
         <label className="mb-1 block text-xs font-medium text-neutral-400">
-          Project name
+          New project{" "}
+          <span className="text-neutral-600">(one video)</span>
         </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. My YouTube channel"
+          placeholder="e.g. Episode 12 — woodworking bench"
           className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:border-neutral-500"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-400">
-          Style brief{" "}
-          <span className="text-neutral-600">(how you like to edit)</span>
-        </label>
-        <textarea
-          value={style}
-          onChange={(e) => setStyle(e.target.value)}
-          rows={3}
-          placeholder="Punchy talking-head edits. Open on a hook, cut filler words, keep tight pacing with a little breathing room."
-          className="w-full resize-y rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-        />
-      </div>
+      <p className="text-xs text-neutral-600">
+        Derush Stack:{" "}
+        <span className="text-neutral-400">
+          {stack === undefined
+            ? "…"
+            : (stack?.name ?? "set up at onboarding")}
+        </span>
+      </p>
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"
@@ -73,18 +97,20 @@ function NewProjectForm() {
 function ProjectCard({
   id,
   name,
-  style,
+  status,
   createdAt,
 }: {
   id: Id<"projects">;
   name: string;
-  style: string;
+  status?: string;
   createdAt: number;
 }) {
   const removeProject = useMutation(api.projects.remove);
   const [deleting, setDeleting] = useState(false);
 
-  async function handleDelete() {
+  async function handleDelete(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (deleting) return;
     if (!confirm(`Delete project "${name}"? This cannot be undone.`)) return;
     setDeleting(true);
@@ -96,27 +122,28 @@ function ProjectCard({
   }
 
   return (
-    <li className="flex items-start justify-between gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
-      <div className="min-w-0">
-        <h3 className="truncate font-medium">{name}</h3>
-        {style ? (
-          <p className="mt-1 line-clamp-2 text-sm text-neutral-400">{style}</p>
-        ) : (
-          <p className="mt-1 text-sm italic text-neutral-600">
-            No style brief yet
-          </p>
-        )}
-        <p className="mt-2 text-xs text-neutral-600">
-          Created {new Date(createdAt).toLocaleDateString()}
-        </p>
-      </div>
-      <button
-        onClick={handleDelete}
-        disabled={deleting}
-        className="shrink-0 rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-red-700 hover:text-red-400 disabled:opacity-50"
+    <li>
+      <Link
+        href={`/dashboard/projects/${id}`}
+        className="flex items-start justify-between gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-600"
       >
-        {deleting ? "Deleting…" : "Delete"}
-      </button>
+        <div className="min-w-0">
+          <h3 className="truncate font-medium">{name}</h3>
+          <div className="mt-2">
+            <StatusBadge status={status} />
+          </div>
+          <p className="mt-2 text-xs text-neutral-600">
+            Created {new Date(createdAt).toLocaleDateString()}
+          </p>
+        </div>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="shrink-0 rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-red-700 hover:text-red-400 disabled:opacity-50"
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+      </Link>
     </li>
   );
 }
@@ -127,7 +154,6 @@ function ProjectList() {
   if (projects === undefined) {
     return <p className="text-sm text-neutral-500">Loading projects…</p>;
   }
-
   if (projects.length === 0) {
     return (
       <p className="text-sm text-neutral-500">
@@ -135,7 +161,6 @@ function ProjectList() {
       </p>
     );
   }
-
   return (
     <ul className="space-y-3">
       {projects.map((p) => (
@@ -143,7 +168,7 @@ function ProjectList() {
           key={p._id}
           id={p._id}
           name={p.name}
-          style={p.style}
+          status={p.status}
           createdAt={p.createdAt}
         />
       ))}

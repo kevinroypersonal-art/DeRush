@@ -16,8 +16,8 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold">Projects</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          A project is a workspace for a channel or client. Each one carries its
-          own style brief and editing memory.
+          A project is one video: upload its transcript and your Derush Stack
+          produces a Premiere edit.
         </p>
       </div>
 

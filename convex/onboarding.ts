@@ -77,14 +77,18 @@ export const getState = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return { profile: null, agents: [] };
+      return { profile: null, agents: [], stack: null };
     }
     const profile = await getProfile(ctx, identity.subject);
     const agents = await ctx.db
       .query("agents")
       .withIndex("by_owner", (q) => q.eq("ownerId", identity.subject))
       .collect();
-    return { profile, agents };
+    const stack = await ctx.db
+      .query("derushStacks")
+      .withIndex("by_owner", (q) => q.eq("ownerId", identity.subject))
+      .first();
+    return { profile, agents, stack };
   },
 });
 

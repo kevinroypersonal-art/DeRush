@@ -55,6 +55,36 @@ export const upsertAgents = internalMutation({
   },
   handler: async (ctx, { ownerId, source, agents }) => {
     const now = Date.now();
+    const profile = await ctx.db
+      .query("editorProfiles")
+      .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
+      .unique();
+
+    // Ensure the user's Derush Stack exists (the named group these agents form),
+    // snapshotting the questionnaire so the stack is reproducible.
+    const existingStack = await ctx.db
+      .query("derushStacks")
+      .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
+      .first();
+    let stackId;
+    if (existingStack) {
+      await ctx.db.patch(existingStack._id, {
+        source,
+        intake: profile?.intake ?? existingStack.intake,
+        updatedAt: now,
+      });
+      stackId = existingStack._id;
+    } else {
+      stackId = await ctx.db.insert("derushStacks", {
+        ownerId,
+        name: "My Derush Stack",
+        source,
+        intake: profile?.intake,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     for (const { kind, systemPrompt } of agents) {
       const existing = await ctx.db
         .query("agents")
@@ -64,6 +94,7 @@ export const upsertAgents = internalMutation({
         .unique();
       if (existing) {
         await ctx.db.patch(existing._id, {
+          stackId,
           systemPrompt,
           version: existing.version + 1,
           status: "draft",
@@ -73,6 +104,7 @@ export const upsertAgents = internalMutation({
       } else {
         await ctx.db.insert("agents", {
           ownerId,
+          stackId,
           kind,
           systemPrompt,
           version: 1,
@@ -83,10 +115,7 @@ export const upsertAgents = internalMutation({
         });
       }
     }
-    const profile = await ctx.db
-      .query("editorProfiles")
-      .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
-      .unique();
+
     if (profile) {
       await ctx.db.patch(profile._id, {
         status: "agents_generated",
