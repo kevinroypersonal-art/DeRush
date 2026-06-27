@@ -2,6 +2,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function DashboardPage() {
   return (
@@ -10,7 +11,10 @@ export default function DashboardPage() {
         <Link href="/" className="text-sm font-semibold tracking-wide">
           DeRush
         </Link>
-        <UserButton afterSignOutUrl="/" />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <UserButton afterSignOutUrl="/" />
+        </div>
       </header>
 
       <div className="mb-8">

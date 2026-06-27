@@ -1,9 +1,13 @@
-import { SignIn } from "@clerk/nextjs";
+import { AuthShell } from "@/components/AuthShell";
+import { AuthCard } from "@/components/AuthCard";
 
 export default function SignInPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <SignIn />
-    </main>
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to your DeRush account."
+    >
+      <AuthCard mode="sign-in" />
+    </AuthShell>
   );
 }
