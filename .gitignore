@@ -1,0 +1,40 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env files
+.env
+.env*.local
+
+# convex
+.convex/
+
+# typescript
+*.tsbuildinfo
+
+# editor
+.vscode/
+.idea/
+
+# agent tooling (npx skills add …) — local, not part of the app
+.agents/
+.claude/
+skills-lock.json
