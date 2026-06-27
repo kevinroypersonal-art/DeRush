@@ -5,7 +5,7 @@ import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { parseSrt } from "./srt";
+import { parseTranscript } from "./transcript";
 import { buildXmeml, XmemlClip } from "./xmeml";
 import { Selection, clipFromSegment, selectionsFromIndexes } from "./editLogic";
 
@@ -290,9 +290,9 @@ export const parseSrtFile = action({
     try {
       const blob = await ctx.storage.get(project.srtStorageId);
       if (!blob) throw new Error("Uploaded transcript not found");
-      const cues = parseSrt(await blob.text());
+      const cues = parseTranscript(await blob.text(), project.srtFilename);
       if (cues.length === 0) {
-        throw new Error("No subtitles found in the file.");
+        throw new Error("No timecoded text found in the file.");
       }
       const durationMs = cues.reduce((m, c) => Math.max(m, c.endMs), 0);
       await ctx.runMutation(internal.projects._writeRushAndSegments, {

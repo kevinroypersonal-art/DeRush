@@ -225,11 +225,12 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
         <div className={card + " space-y-3"}>
           <h2 className="text-sm font-semibold">Upload transcript</h2>
           <p className="text-xs text-muted-foreground">
-            An SRT or VTT subtitle file of the raw footage.
+            A transcript of the raw footage — SRT, VTT, TXT, CSV or JSON. Any
+            format works as long as text is linked to timecodes.
           </p>
           <input
             type="file"
-            accept=".srt,.vtt,text/plain"
+            accept=".srt,.vtt,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:text-foreground"
           />
