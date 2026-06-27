@@ -22,10 +22,10 @@ function StatusBadge({ status }: { status?: string }) {
   const s = status ?? "draft";
   const tone =
     s === "ready"
-      ? "border-green-800 text-green-400"
+      ? "border-primary/50 text-primary"
       : s === "error"
-        ? "border-red-800 text-red-400"
-        : "border-neutral-700 text-neutral-400";
+        ? "border-destructive/60 text-destructive"
+        : "border-input text-muted-foreground";
   return (
     <span
       className={`rounded-full border px-2 py-0.5 text-[10px] ${tone}`}
@@ -60,33 +60,33 @@ function NewProjectForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-8 space-y-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4"
+      className="mb-8 space-y-3 rounded-lg border border-border bg-card p-4"
     >
       <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-400">
+        <label className="mb-1 block text-xs font-medium text-muted-foreground">
           New project{" "}
-          <span className="text-neutral-600">(one video)</span>
+          <span className="text-muted-foreground">(one video)</span>
         </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Episode 12 — woodworking bench"
-          className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
         />
       </div>
-      <p className="text-xs text-neutral-600">
+      <p className="text-xs text-muted-foreground">
         Derush Stack:{" "}
-        <span className="text-neutral-400">
+        <span className="text-muted-foreground">
           {stack === undefined
             ? "…"
             : (stack?.name ?? "set up at onboarding")}
         </span>
       </p>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <button
         type="submit"
         disabled={submitting || !name.trim()}
-        className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting ? "Creating…" : "Create project"}
       </button>
@@ -125,21 +125,21 @@ function ProjectCard({
     <li>
       <Link
         href={`/dashboard/projects/${id}`}
-        className="flex items-start justify-between gap-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 transition hover:border-neutral-600"
+        className="flex items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 transition hover:border-ring"
       >
         <div className="min-w-0">
           <h3 className="truncate font-medium">{name}</h3>
           <div className="mt-2">
             <StatusBadge status={status} />
           </div>
-          <p className="mt-2 text-xs text-neutral-600">
+          <p className="mt-2 text-xs text-muted-foreground">
             Created {new Date(createdAt).toLocaleDateString()}
           </p>
         </div>
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="shrink-0 rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-red-700 hover:text-red-400 disabled:opacity-50"
+          className="shrink-0 rounded-md border border-input px-3 py-1.5 text-xs text-foreground transition hover:border-destructive hover:text-destructive disabled:opacity-50"
         >
           {deleting ? "Deleting…" : "Delete"}
         </button>
@@ -152,11 +152,11 @@ function ProjectList() {
   const projects = useQuery(api.projects.list);
 
   if (projects === undefined) {
-    return <p className="text-sm text-neutral-500">Loading projects…</p>;
+    return <p className="text-sm text-muted-foreground">Loading projects…</p>;
   }
   if (projects.length === 0) {
     return (
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-muted-foreground">
         No projects yet. Create one above to get started.
       </p>
     );
@@ -180,7 +180,7 @@ export function ProjectsDashboard() {
   return (
     <>
       <AuthLoading>
-        <p className="text-sm text-neutral-500">Connecting…</p>
+        <p className="text-sm text-muted-foreground">Connecting…</p>
       </AuthLoading>
       <Authenticated>
         <NewProjectForm />

@@ -28,13 +28,13 @@ type Intake = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm outline-none focus:border-neutral-500";
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring";
 const textareaClass = inputClass + " resize-y";
 const primaryBtn =
-  "rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryBtn =
-  "rounded-md border border-neutral-700 px-4 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 disabled:opacity-50";
-const labelClass = "mb-1 block text-xs font-medium text-neutral-400";
+  "rounded-md border border-input px-4 py-2 text-sm text-foreground transition hover:border-ring disabled:opacity-50";
+const labelClass = "mb-1 block text-xs font-medium text-muted-foreground";
 
 const AGENT_LABELS: Record<string, string> = {
   derush: "DeRush agent",
@@ -70,14 +70,14 @@ function TextField({
     <div>
       <label className={labelClass}>
         {label}
-        {required ? <span className="text-red-400"> *</span> : null}
-        {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
+        {required ? <span className="text-destructive"> *</span> : null}
+        {hint ? <span className="text-muted-foreground"> — {hint}</span> : null}
       </label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={inputClass + (missing ? " border-red-800/70" : "")}
+        className={inputClass + (missing ? " border-destructive/70" : "")}
       />
     </div>
   );
@@ -103,15 +103,15 @@ function AreaField({
     <div>
       <label className={labelClass}>
         {label}
-        {required ? <span className="text-red-400"> *</span> : null}
-        {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
+        {required ? <span className="text-destructive"> *</span> : null}
+        {hint ? <span className="text-muted-foreground"> — {hint}</span> : null}
       </label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         placeholder={placeholder}
-        className={textareaClass + (missing ? " border-red-800/70" : "")}
+        className={textareaClass + (missing ? " border-destructive/70" : "")}
       />
     </div>
   );
@@ -127,12 +127,12 @@ function CheckField({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-neutral-300">
+    <label className="flex items-center gap-2 text-sm text-foreground">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-white"
+        className="h-4 w-4 accent-[var(--primary)]"
       />
       {label}
     </label>
@@ -167,9 +167,9 @@ function SliderField({
       <label className={labelClass + " flex items-baseline justify-between"}>
         <span>
           {label}
-          {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
+          {hint ? <span className="text-muted-foreground"> — {hint}</span> : null}
         </span>
-        <span className="text-sm font-medium text-neutral-200">
+        <span className="text-sm font-medium text-foreground">
           {current} {unit}
         </span>
       </label>
@@ -180,7 +180,7 @@ function SliderField({
         step={step}
         value={current}
         onChange={(e) => onChange(`${e.target.value} ${unit}`)}
-        className="w-full accent-white"
+        className="w-full accent-[var(--primary)]"
       />
     </div>
   );
@@ -225,29 +225,29 @@ function PathChoice({
   return (
     <div>
       <h1 className="text-2xl font-semibold">Set up your editing agents</h1>
-      <p className="mt-1 mb-6 text-sm text-neutral-400">
+      <p className="mt-1 mb-6 text-sm text-muted-foreground">
         DeRush builds three AI agents tuned to how you edit. Pick how you want to
         get started.
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="cursor-not-allowed rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 opacity-50">
+        <div className="cursor-not-allowed rounded-lg border border-border bg-card p-4 opacity-50">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">Templates</h3>
-            <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] text-neutral-500">
+            <span className="rounded-full border border-input px-2 py-0.5 text-[10px] text-muted-foreground">
               Coming soon
             </span>
           </div>
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-muted-foreground">
             Start from a curated editing style.
           </p>
         </div>
 
         <button
           onClick={() => onPick("scratch")}
-          className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 text-left transition hover:border-neutral-600"
+          className="rounded-lg border border-border bg-card p-4 text-left transition hover:border-ring"
         >
           <h3 className="font-medium">From scratch</h3>
-          <p className="mt-2 text-sm text-neutral-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             Answer a few questions about your subject, lengths and editing
             style.
           </p>
@@ -255,10 +255,10 @@ function PathChoice({
 
         <button
           onClick={() => onPick("xml")}
-          className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4 text-left transition hover:border-neutral-600"
+          className="rounded-lg border border-border bg-card p-4 text-left transition hover:border-ring"
         >
           <h3 className="font-medium">From your XML</h3>
-          <p className="mt-2 text-sm text-neutral-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             Upload an edit export and let the AI learn your style, then review.
           </p>
         </button>
@@ -323,14 +323,14 @@ function ScratchForm({
             key={i}
             className={
               "h-1.5 flex-1 rounded-full " +
-              (i <= step ? "bg-white" : "bg-neutral-800")
+              (i <= step ? "bg-primary" : "bg-muted")
             }
           />
         ))}
       </div>
-      <p className="mb-4 text-xs text-neutral-600">Every field is required.</p>
+      <p className="mb-4 text-xs text-muted-foreground">Every field is required.</p>
 
-      <div className="space-y-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+      <div className="space-y-3 rounded-lg border border-border bg-card p-4">
         {step === 0 && (
           <>
             <h2 className="text-sm font-semibold">The basics</h2>
@@ -469,7 +469,7 @@ function ScratchForm({
         )}
       </div>
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
       <div className="mt-4 flex items-center justify-between">
         <button
@@ -541,7 +541,7 @@ function XmlUpload({ onDone }: { onDone: () => void }) {
     return (
       <div>
         <h1 className="mb-1 text-2xl font-semibold">Review your style</h1>
-        <p className="mb-6 text-sm text-neutral-400">
+        <p className="mb-6 text-sm text-muted-foreground">
           We prefilled these from your edit. Tweak anything, then generate your
           agents.
         </p>
@@ -553,18 +553,18 @@ function XmlUpload({ onDone }: { onDone: () => void }) {
   return (
     <div>
       <h1 className="mb-1 text-2xl font-semibold">Learn from your XML</h1>
-      <p className="mb-6 text-sm text-neutral-400">
+      <p className="mb-6 text-sm text-muted-foreground">
         Upload an edit export (FCPXML, Premiere XML or EDL). The AI reads it and
         prefills your style.
       </p>
-      <div className="space-y-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+      <div className="space-y-4 rounded-lg border border-border bg-card p-4">
         <input
           type="file"
           accept=".xml,.fcpxml,.edl,text/xml,application/xml"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-neutral-300 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-800 file:px-3 file:py-1.5 file:text-sm file:text-neutral-200"
+          className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:text-foreground"
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <button
           onClick={handleAnalyze}
           disabled={!file || phase === "analyzing"}
@@ -606,10 +606,10 @@ function AgentCard({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+    <div className="space-y-2 rounded-lg border border-border bg-card p-4">
       <div>
         <h3 className="font-medium">{AGENT_LABELS[kind] ?? kind}</h3>
-        <p className="text-xs text-neutral-500">{AGENT_BLURB[kind]}</p>
+        <p className="text-xs text-muted-foreground">{AGENT_BLURB[kind]}</p>
       </div>
       <textarea
         value={value}
@@ -628,7 +628,7 @@ function AgentCard({
         >
           {saving ? "Saving…" : "Save"}
         </button>
-        {saved && <span className="text-xs text-neutral-500">Saved</span>}
+        {saved && <span className="text-xs text-muted-foreground">Saved</span>}
       </div>
     </div>
   );
@@ -676,13 +676,13 @@ function AgentReview() {
   }
 
   if (state === undefined) {
-    return <p className="text-sm text-neutral-500">Loading…</p>;
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
   return (
     <div>
       <h1 className="mb-1 text-2xl font-semibold">Your Derush Stack</h1>
-      <p className="mb-6 text-sm text-neutral-400">
+      <p className="mb-6 text-sm text-muted-foreground">
         Your stack is these three agents — the heart of DeRush. Edit any prompt,
         then finish to activate the stack.
       </p>
@@ -696,7 +696,7 @@ function AgentReview() {
           />
         ))}
       </div>
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-5 flex items-center justify-between">
         <button
           onClick={handleRegenerate}
@@ -746,7 +746,7 @@ function Wizard() {
   }
 
   if (state === undefined || step === null) {
-    return <p className="text-sm text-neutral-500">Loading…</p>;
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
   switch (step) {
@@ -765,7 +765,7 @@ export function OnboardingWizard() {
   return (
     <>
       <AuthLoading>
-        <p className="text-sm text-neutral-500">Connecting…</p>
+        <p className="text-sm text-muted-foreground">Connecting…</p>
       </AuthLoading>
       <Authenticated>
         <Wizard />

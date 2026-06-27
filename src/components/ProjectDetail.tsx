@@ -7,10 +7,10 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
 const primaryBtn =
-  "rounded-md bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryBtn =
-  "rounded-md border border-neutral-700 px-4 py-2 text-sm text-neutral-300 transition hover:border-neutral-500 disabled:opacity-50";
-const card = "rounded-lg border border-neutral-800 bg-neutral-900/40 p-4";
+  "rounded-md border border-input px-4 py-2 text-sm text-foreground transition hover:border-ring disabled:opacity-50";
+const card = "rounded-lg border border-border bg-card p-4";
 
 function fmt(ms: number): string {
   const total = Math.round(ms / 1000);
@@ -36,7 +36,7 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
   const [err, setErr] = useState<string | null>(null);
 
   if (project === undefined) {
-    return <p className="text-sm text-neutral-500">Loading…</p>;
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
   const status = project.status ?? "draft";
@@ -81,30 +81,30 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
     <div>
       <Link
         href="/dashboard"
-        className="text-xs text-neutral-500 hover:text-neutral-300"
+        className="text-xs text-muted-foreground hover:text-foreground"
       >
         ← Projects
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">{project.name}</h1>
-      <p className="mb-6 mt-1 text-sm text-neutral-400">
+      <p className="mb-6 mt-1 text-sm text-muted-foreground">
         One video → one Premiere edit. Upload the transcript, then let your
         Derush Stack cut it.
       </p>
 
-      {err && <p className="mb-4 text-sm text-red-400">{err}</p>}
+      {err && <p className="mb-4 text-sm text-destructive">{err}</p>}
 
       {/* Upload step */}
       {status === "draft" && (
         <div className={card + " space-y-3"}>
           <h2 className="text-sm font-semibold">Upload transcript</h2>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-muted-foreground">
             An SRT or VTT subtitle file of the raw footage.
           </p>
           <input
             type="file"
             accept=".srt,.vtt,text/plain"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-neutral-300 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-800 file:px-3 file:py-1.5 file:text-sm file:text-neutral-200"
+            className="block w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:text-foreground"
           />
           <button
             onClick={handleUpload}
@@ -120,7 +120,7 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
         status === "parsing" ||
         status === "generating") && (
         <div className={card}>
-          <p className="text-sm text-neutral-300">
+          <p className="text-sm text-foreground">
             {status === "generating"
               ? "Your Derush Stack is cutting the edit… this can take a moment."
               : "Parsing the transcript…"}
@@ -147,10 +147,10 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
             <ul className="max-h-96 space-y-1 overflow-y-auto text-sm">
               {(segments ?? []).map((s) => (
                 <li key={s._id} className="flex gap-3">
-                  <span className="shrink-0 font-mono text-xs text-neutral-600">
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
                     {fmt(s.startMs)}
                   </span>
-                  <span className="text-neutral-300">{s.text}</span>
+                  <span className="text-foreground">{s.text}</span>
                 </li>
               ))}
             </ul>
@@ -182,7 +182,7 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
               </button>
             </div>
           </div>
-          <p className="text-xs text-neutral-600">
+          <p className="text-xs text-muted-foreground">
             Premiere XMEML — import it, then relink the media to your source clip.
           </p>
           <ul className="space-y-2">
@@ -194,15 +194,15 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
                 return (
                   <li key={i} className={card}>
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm text-neutral-200">
+                      <span className="text-sm text-foreground">
                         {seg?.text ?? "(segment)"}
                       </span>
-                      <span className="shrink-0 font-mono text-xs text-neutral-600">
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
                         {seg ? fmt(seg.startMs) : ""}
                       </span>
                     </div>
                     {sel.rationale && (
-                      <p className="mt-1 text-xs text-neutral-500">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {sel.rationale}
                       </p>
                     )}
@@ -215,7 +215,7 @@ export function ProjectDetail({ projectId: raw }: { projectId: string }) {
 
       {status === "error" && (
         <div className={card + " space-y-3"}>
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-destructive">
             {project.xmlError ?? "Something went wrong."}
           </p>
           <button

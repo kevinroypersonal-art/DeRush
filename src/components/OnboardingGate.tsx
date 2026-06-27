@@ -23,10 +23,10 @@ function Gate({ children }: { children: ReactNode }) {
   }, [state, ready, router]);
 
   if (state === undefined) {
-    return <p className="text-sm text-neutral-500">Loading…</p>;
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
   if (!ready) {
-    return <p className="text-sm text-neutral-500">Redirecting…</p>;
+    return <p className="text-sm text-muted-foreground">Redirecting…</p>;
   }
   return <>{children}</>;
 }
@@ -35,7 +35,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   return (
     <>
       <AuthLoading>
-        <p className="text-sm text-neutral-500">Connecting…</p>
+        <p className="text-sm text-muted-foreground">Connecting…</p>
       </AuthLoading>
       <Authenticated>
         <Gate>{children}</Gate>
