@@ -12,8 +12,11 @@ const MODEL = "claude-opus-4-8";
 // Guard against blowing the context window / cost on large project XMLs.
 const MAX_XML_CHARS = 500_000;
 
-// The intake fields, as a JSON-schema property map (all optional). Shared by the
-// XML-analysis output schema below.
+// The intake fields, as a JSON-schema property map. Shared by the XML-analysis
+// output schema below. NOTE: strict structured outputs branch on every OPTIONAL
+// property, so an object with many optionals trips Anthropic's "Schema is too
+// complex" guard. We therefore mark every field `required` (see INTAKE_KEYS) and
+// instruct the model to emit "" / false for anything it can't infer.
 const INTAKE_PROPERTIES = {
   subject: { type: "string" },
   rushLength: { type: "string" },
@@ -31,6 +34,8 @@ const INTAKE_PROPERTIES = {
   zoomPunchIns: { type: "boolean" },
   music: { type: "string" },
 };
+
+const INTAKE_KEYS = Object.keys(INTAKE_PROPERTIES);
 
 // `new Anthropic()` reads ANTHROPIC_API_KEY from the Convex deployment env.
 // Set it with: npx convex env set ANTHROPIC_API_KEY sk-ant-...
@@ -94,6 +99,7 @@ export const analyzeXml = action({
               intake: {
                 type: "object",
                 additionalProperties: false,
+                required: INTAKE_KEYS,
                 properties: INTAKE_PROPERTIES,
               },
               analysisNotes: { type: "string" },
@@ -107,13 +113,14 @@ export const analyzeXml = action({
         "Extract style signals: pacing, cut density, use of b-roll, color/motion cues, " +
         "and overall structure. From those signals infer sensible defaults for an intake " +
         "questionnaire that describes how this editor works. Do not invent facts the file " +
-        "does not support — leave a field unset if it is genuinely unknown.",
+        "does not support — for any field you genuinely cannot infer, return an empty " +
+        "string (or false for the yes/no fields) rather than guessing.",
       messages: [
         {
           role: "user",
           content:
-            "Here is the exported edit file. Fill in the intake fields you can infer, " +
-            "and summarize what you found in analysisNotes.\n\n" +
+            "Here is the exported edit file. Fill in the intake fields you can infer " +
+            "(empty string when unknown), and summarize what you found in analysisNotes.\n\n" +
             xmlText,
         },
       ],
