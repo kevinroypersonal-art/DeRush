@@ -5,9 +5,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DeRush",
+  title: "DeRush — Swallow hours of editing in seconds",
   description:
-    "An AI video-editing assistant that learns your storytelling logic and drafts a timeline from your rushes.",
+    "DeRush is the AI-powered video-editing assistant that learns how you cut, turns raw transcripts into a pre-edited timeline, and gets sharper with every video you finish.",
 };
 
 // Applied before React hydrates so the page paints in the correct theme right
