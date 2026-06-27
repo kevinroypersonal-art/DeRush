@@ -56,24 +56,28 @@ function TextField({
   value,
   onChange,
   placeholder,
+  required,
 }: {
   label: string;
   hint?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  required?: boolean;
 }) {
+  const missing = !!required && !value.trim();
   return (
     <div>
       <label className={labelClass}>
         {label}
+        {required ? <span className="text-red-400"> *</span> : null}
         {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
       </label>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={inputClass}
+        className={inputClass + (missing ? " border-red-800/70" : "")}
       />
     </div>
   );
@@ -85,17 +89,21 @@ function AreaField({
   value,
   onChange,
   placeholder,
+  required,
 }: {
   label: string;
   hint?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  required?: boolean;
 }) {
+  const missing = !!required && !value.trim();
   return (
     <div>
       <label className={labelClass}>
         {label}
+        {required ? <span className="text-red-400"> *</span> : null}
         {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
       </label>
       <textarea
@@ -103,7 +111,7 @@ function AreaField({
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         placeholder={placeholder}
-        className={textareaClass}
+        className={textareaClass + (missing ? " border-red-800/70" : "")}
       />
     </div>
   );
@@ -130,6 +138,82 @@ function CheckField({
     </label>
   );
 }
+
+function SliderField({
+  label,
+  hint,
+  min,
+  max,
+  step,
+  unit,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const parsed = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
+  const current = Number.isFinite(parsed)
+    ? Math.min(max, Math.max(min, parsed))
+    : min;
+  return (
+    <div>
+      <label className={labelClass + " flex items-baseline justify-between"}>
+        <span>
+          {label}
+          {hint ? <span className="text-neutral-600"> — {hint}</span> : null}
+        </span>
+        <span className="text-sm font-medium text-neutral-200">
+          {current} {unit}
+        </span>
+      </label>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={current}
+        onChange={(e) => onChange(`${e.target.value} ${unit}`)}
+        className="w-full accent-white"
+      />
+    </div>
+  );
+}
+
+// Sensible starting answers so the questionnaire is pre-filled, not blank.
+const SLIDER_DEFAULTS = { rushLength: "60 min", finalLength: "10 min" };
+const PRESET_INTAKE: Intake = {
+  subject: "Talking-head tutorials on woodworking",
+  ...SLIDER_DEFAULTS,
+  keepDiscardRules:
+    "Cut filler words, long silences, retakes and tangents. Keep strong hooks and clear explanations.",
+  editingStyle: "Tight and punchy, with a little breathing room",
+  storyMessage:
+    "Teach one useful idea the viewer can act on, and make it feel worth their time.",
+  narrativeStructure: "Hook / build / payoff",
+  tone: "Warm and conversational",
+  audience: "Hobbyists and beginners getting into the craft",
+  motionDesign: false,
+  colorGrading: "Warm and natural",
+  cuttingStyle: "Jump cuts with occasional J/L cuts",
+  bRoll: "Over explanations and to cover cuts",
+  zoomPunchIns: true,
+  music: "Subtle background bed, lifting in the intro and outro",
+};
+
+// Fields the user must fill (sliders and checkboxes always carry a value).
+const REQUIRED_BY_STEP: (keyof Intake)[][] = [
+  ["subject"],
+  ["keepDiscardRules", "editingStyle"],
+  ["storyMessage", "narrativeStructure", "tone", "audience"],
+  ["colorGrading", "cuttingStyle", "bRoll", "music"],
+];
 
 // ---- path choice ------------------------------------------------------------
 
@@ -195,20 +279,28 @@ function ScratchForm({
   const saveIntake = useMutation(api.onboarding.saveIntake);
   const generateAgents = useAction(api.agentsNode.generateAgents);
 
-  const [form, setForm] = useState<Intake>({
-    motionDesign: false,
-    zoomPunchIns: false,
-    ...initial,
-  });
+  const [form, setForm] = useState<Intake>(
+    initial
+      ? { motionDesign: false, zoomPunchIns: false, ...SLIDER_DEFAULTS, ...initial }
+      : { ...PRESET_INTAKE }
+  );
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = (patch: Partial<Intake>) => setForm((f) => ({ ...f, ...patch }));
 
+  const filled = (k: keyof Intake) => String(form[k] ?? "").trim().length > 0;
+  const stepComplete = REQUIRED_BY_STEP[step].every(filled);
+  const allComplete = REQUIRED_BY_STEP.flat().every(filled);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    if (!allComplete) {
+      setError("Please fill in every field before generating.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -225,7 +317,7 @@ function ScratchForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         {[0, 1, 2, 3].map((i) => (
           <span
             key={i}
@@ -236,31 +328,39 @@ function ScratchForm({
           />
         ))}
       </div>
+      <p className="mb-4 text-xs text-neutral-600">Every field is required.</p>
 
       <div className="space-y-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
         {step === 0 && (
           <>
             <h2 className="text-sm font-semibold">The basics</h2>
             <TextField
+              required
               label="Subject"
               hint="what the video is about"
               value={form.subject ?? ""}
               onChange={(v) => set({ subject: v })}
               placeholder="e.g. talking-head tutorials on woodworking"
             />
-            <TextField
+            <SliderField
               label="Rush length"
               hint="raw footage to de-rush"
-              value={form.rushLength ?? ""}
+              min={5}
+              max={240}
+              step={5}
+              unit="min"
+              value={form.rushLength ?? "60 min"}
               onChange={(v) => set({ rushLength: v })}
-              placeholder="e.g. 45–90 min"
             />
-            <TextField
+            <SliderField
               label="Final length"
               hint="desired result"
-              value={form.finalLength ?? ""}
+              min={1}
+              max={60}
+              step={1}
+              unit="min"
+              value={form.finalLength ?? "10 min"}
               onChange={(v) => set({ finalLength: v })}
-              placeholder="e.g. 8–12 min"
             />
           </>
         )}
@@ -269,6 +369,7 @@ function ScratchForm({
           <>
             <h2 className="text-sm font-semibold">De-rush rules</h2>
             <AreaField
+              required
               label="Keep / discard rules"
               hint="what to cut, what to always keep"
               value={form.keepDiscardRules ?? ""}
@@ -276,6 +377,7 @@ function ScratchForm({
               placeholder="Cut filler words, long silences, retakes and tangents. Keep strong hooks and clear explanations."
             />
             <TextField
+              required
               label="Editing pace"
               hint="overall feel"
               value={form.editingStyle ?? ""}
@@ -289,6 +391,7 @@ function ScratchForm({
           <>
             <h2 className="text-sm font-semibold">Storytelling</h2>
             <AreaField
+              required
               label="Vision / message"
               hint="the why of the video"
               value={form.storyMessage ?? ""}
@@ -296,18 +399,21 @@ function ScratchForm({
               placeholder="What should the viewer feel or take away?"
             />
             <TextField
+              required
               label="Narrative structure"
               value={form.narrativeStructure ?? ""}
               onChange={(v) => set({ narrativeStructure: v })}
               placeholder="e.g. hook / build / payoff"
             />
             <TextField
+              required
               label="Tone"
               value={form.tone ?? ""}
               onChange={(v) => set({ tone: v })}
               placeholder="e.g. warm and conversational"
             />
             <TextField
+              required
               label="Audience"
               value={form.audience ?? ""}
               onChange={(v) => set({ audience: v })}
@@ -332,24 +438,28 @@ function ScratchForm({
               />
             </div>
             <TextField
+              required
               label="Color grading"
               value={form.colorGrading ?? ""}
               onChange={(v) => set({ colorGrading: v })}
               placeholder="e.g. warm filmic, natural"
             />
             <TextField
+              required
               label="Cutting style"
               value={form.cuttingStyle ?? ""}
               onChange={(v) => set({ cuttingStyle: v })}
               placeholder="e.g. jump cuts, J/L cuts, match cuts"
             />
             <TextField
+              required
               label="B-roll"
               value={form.bRoll ?? ""}
               onChange={(v) => set({ bRoll: v })}
               placeholder="when and where to place b-roll"
             />
             <TextField
+              required
               label="Music"
               value={form.music ?? ""}
               onChange={(v) => set({ music: v })}
@@ -371,13 +481,18 @@ function ScratchForm({
           Back
         </button>
         {last ? (
-          <button type="submit" disabled={submitting} className={primaryBtn}>
+          <button
+            type="submit"
+            disabled={submitting || !allComplete}
+            className={primaryBtn}
+          >
             {submitting ? "Generating your agents…" : "Generate agents"}
           </button>
         ) : (
           <button
             type="button"
             onClick={() => setStep((s) => Math.min(3, s + 1))}
+            disabled={!stepComplete}
             className={primaryBtn}
           >
             Next
