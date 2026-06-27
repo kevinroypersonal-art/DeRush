@@ -8,7 +8,14 @@
  * @module
  */
 
+import type * as agents from "../agents.js";
+import type * as agentsNode from "../agentsNode.js";
+import type * as migrations from "../migrations.js";
+import type * as onboarding from "../onboarding.js";
 import type * as projects from "../projects.js";
+import type * as projectsNode from "../projectsNode.js";
+import type * as srt from "../srt.js";
+import type * as xmeml from "../xmeml.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +24,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agents: typeof agents;
+  agentsNode: typeof agentsNode;
+  migrations: typeof migrations;
+  onboarding: typeof onboarding;
   projects: typeof projects;
+  projectsNode: typeof projectsNode;
+  srt: typeof srt;
+  xmeml: typeof xmeml;
 }>;
 
 /**

@@ -15,14 +15,14 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
     // Surfaces a clear message instead of a cryptic runtime crash when the
     // deployment URL hasn't been configured yet (see .env.example).
     return (
-      <div className="mx-auto max-w-xl p-8 text-sm text-neutral-400">
-        <p className="mb-2 font-semibold text-neutral-200">
+      <div className="mx-auto max-w-xl p-8 text-sm text-muted-foreground">
+        <p className="mb-2 font-semibold text-foreground">
           Convex is not configured.
         </p>
         <p>
-          Set <code className="text-neutral-300">NEXT_PUBLIC_CONVEX_URL</code> in
-          your <code className="text-neutral-300">.env.local</code> (run{" "}
-          <code className="text-neutral-300">npx convex dev</code> to create a
+          Set <code className="text-foreground">NEXT_PUBLIC_CONVEX_URL</code> in
+          your <code className="text-foreground">.env.local</code> (run{" "}
+          <code className="text-foreground">npx convex dev</code> to create a
           deployment).
         </p>
       </div>

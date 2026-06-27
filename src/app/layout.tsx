@@ -37,7 +37,7 @@ export default function RootLayout({
         <head>
           <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         </head>
-        <body className="min-h-screen antialiased">
+        <body className="min-h-screen bg-background text-foreground antialiased">
           <ThemeProvider>
             <ConvexClientProvider>{children}</ConvexClientProvider>
           </ThemeProvider>

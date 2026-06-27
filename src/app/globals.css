@@ -1,37 +1,107 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Lora:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
+
+/* violet-bloom theme (tweakcn.com/r/themes/violet-bloom) ported to Tailwind v4. */
 
 /* Class-based dark mode: `.dark` on <html> toggles the variant, instead of
    relying solely on the OS `prefers-color-scheme`. Lets us drive theme from a
-   user-controlled toggle (see ThemeProvider). */
+   user-controlled toggle (see ThemeProvider). The `.dark` token overrides below
+   already supply the dark palette. */
 @custom-variant dark (&:where(.dark, .dark *));
-
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0b;
-}
-
-.dark {
-  --background: #0a0a0b;
-  --foreground: #ededed;
-}
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Lora", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
+:root {
+  --radius: 1.4rem;
+  --tracking-normal: -0.025em;
+
+  --background: oklch(0.994 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(0.994 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(0.9911 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --primary: oklch(0.5393 0.2713 286.7462);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.954 0.0063 255.4755);
+  --secondary-foreground: oklch(0.1344 0 0);
+  --muted: oklch(0.9702 0 0);
+  --muted-foreground: oklch(0.4386 0 0);
+  --accent: oklch(0.9393 0.0288 266.368);
+  --accent-foreground: oklch(0.5445 0.1903 259.4848);
+  --destructive: oklch(0.629 0.1902 23.0704);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.93 0.0094 286.2156);
+  --input: oklch(0.9401 0 0);
+  --ring: oklch(0.5393 0.2713 286.7462);
+}
+
+.dark {
+  --background: oklch(0.2223 0.006 271.1393);
+  --foreground: oklch(0.9551 0 0);
+  --card: oklch(0.2568 0.0076 274.6528);
+  --card-foreground: oklch(0.9551 0 0);
+  --popover: oklch(0.2568 0.0076 274.6528);
+  --popover-foreground: oklch(0.9551 0 0);
+  --primary: oklch(0.6132 0.2294 291.7437);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.294 0.013 272.9312);
+  --secondary-foreground: oklch(0.9551 0 0);
+  --muted: oklch(0.294 0.013 272.9312);
+  --muted-foreground: oklch(0.7058 0 0);
+  --accent: oklch(0.2795 0.0368 260.031);
+  --accent-foreground: oklch(0.7857 0.1153 246.6596);
+  --destructive: oklch(0.7106 0.1661 22.2162);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.3289 0.0092 268.3843);
+  --input: oklch(0.3289 0.0092 268.3843);
+  --ring: oklch(0.6132 0.2294 291.7437);
+}
+
+/* Driven by the ThemeProvider: it sets `color-scheme` on <html> to match the
+   active theme (and toggles the `.dark` class). Defaults to dark here to match
+   the SSR markup (<html class="dark">) before hydration. */
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
-html.dark {
-  color-scheme: dark;
+html:not(.dark) {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-normal);
   transition: background-color 0.2s ease, color 0.2s ease;
 }

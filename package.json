@@ -12,6 +12,7 @@
     "convex:codegen": "convex codegen"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "@clerk/nextjs": "^6.12.0",
     "convex": "^1.19.0",
     "next": "^15.2.3",

@@ -33,3 +33,8 @@ yarn-error.log*
 # editor
 .vscode/
 .idea/
+
+# agent tooling (npx skills add …) — local, not part of the app
+.agents/
+.claude/
+skills-lock.json
