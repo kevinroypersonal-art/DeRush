@@ -7,6 +7,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { selectionsFromIndexes } from "./editLogic";
 
 // Resolve the authenticated Clerk user id, or throw if unauthenticated.
 async function requireUser(ctx: QueryCtx): Promise<string> {
@@ -35,6 +36,7 @@ const projectStatus = v.union(
   v.literal("uploaded"),
   v.literal("parsing"),
   v.literal("parsed"),
+  v.literal("planning"),
   v.literal("generating"),
   v.literal("ready"),
   v.literal("error")
@@ -45,6 +47,19 @@ const selectionValidator = v.object({
   order: v.number(),
   trimStartMs: v.number(),
   trimEndMs: v.number(),
+  rationale: v.string(),
+});
+
+const guidedPhase = v.union(
+  v.literal("opening"),
+  v.literal("closing"),
+  v.literal("versions"),
+  v.literal("refining"),
+  v.literal("done")
+);
+
+const candidateValidator = v.object({
+  segmentIndexes: v.array(v.number()),
   rationale: v.string(),
 });
 
@@ -122,6 +137,20 @@ export const update = mutation({
       if (!trimmed) throw new Error("Project name is required");
       await ctx.db.patch(projectId, { name: trimmed, updatedAt: Date.now() });
     }
+  },
+});
+
+// Set the optional per-video brief — a free-text note about THIS edit (e.g.
+// "focus on the workshop-fire story"). Genre-neutral: it never encodes style,
+// which lives in the Derush Stack. Injected into generation when present.
+export const setBrief = mutation({
+  args: { projectId: v.id("projects"), brief: v.string() },
+  handler: async (ctx, { projectId, brief }) => {
+    await requireOwnedProject(ctx, projectId);
+    await ctx.db.patch(projectId, {
+      brief: brief.trim(),
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -315,7 +344,12 @@ export const _loadProjectForEdit = internalQuery({
             .collect()
         ).sort((a, b) => a.index - b.index)
       : [];
-    return { project, agents, segments };
+    const plans = await ctx.db
+      .query("editPlans")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    const plan = plans.length ? plans[plans.length - 1] : null;
+    return { project, agents, segments, plan };
   },
 });
 
@@ -327,6 +361,13 @@ export const _writeEditPlanAndXml = internalMutation({
     xmlStorageId: v.id("_storage"),
   },
   handler: async (ctx, { projectId, intent, selections, xmlStorageId }) => {
+    // One plan per project: drop priors so getEditPlan / latestPlan are
+    // unambiguous (the guided flow relies on this invariant too).
+    const prior = await ctx.db
+      .query("editPlans")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    for (const p of prior) await ctx.db.delete(p._id);
     await ctx.db.insert("editPlans", {
       projectId,
       memoryVersion: 0,
@@ -334,6 +375,149 @@ export const _writeEditPlanAndXml = internalMutation({
       selections,
       status: "draft",
     });
+    await ctx.db.patch(projectId, {
+      xmlStorageId,
+      status: "ready",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// ---- guided flow -----------------------------------------------------------
+
+// The single in-progress editPlan we mutate through the guided phases.
+async function latestPlan(ctx: QueryCtx, projectId: Id<"projects">) {
+  const plans = await ctx.db
+    .query("editPlans")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  return plans.length ? plans[plans.length - 1] : null;
+}
+
+async function loadOwnedSegments(ctx: QueryCtx, project: { rushId?: Id<"rushes"> }) {
+  if (!project.rushId) return [];
+  const rushId = project.rushId;
+  const segs = await ctx.db
+    .query("segments")
+    .withIndex("by_rush", (q) => q.eq("rushId", rushId))
+    .collect();
+  return segs.sort((a, b) => a.index - b.index);
+}
+
+// Record the chosen opening and advance to the closing step.
+export const chooseOpening = mutation({
+  args: { projectId: v.id("projects"), idx: v.number() },
+  handler: async (ctx, { projectId, idx }) => {
+    await requireOwnedProject(ctx, projectId);
+    const plan = await latestPlan(ctx, projectId);
+    const cand = plan?.candidates?.[idx];
+    if (!plan || !cand) throw new Error("That option is no longer available");
+    await ctx.db.patch(plan._id, {
+      chosen: { ...(plan.chosen ?? {}), opening: cand.segmentIndexes },
+      phase: "closing",
+      candidates: [],
+    });
+  },
+});
+
+// Record the chosen closing and advance to the versions step.
+export const chooseClosing = mutation({
+  args: { projectId: v.id("projects"), idx: v.number() },
+  handler: async (ctx, { projectId, idx }) => {
+    await requireOwnedProject(ctx, projectId);
+    const plan = await latestPlan(ctx, projectId);
+    const cand = plan?.candidates?.[idx];
+    if (!plan || !cand) throw new Error("That option is no longer available");
+    await ctx.db.patch(plan._id, {
+      chosen: { ...(plan.chosen ?? {}), closing: cand.segmentIndexes },
+      phase: "versions",
+      candidates: [],
+    });
+  },
+});
+
+// Commit a full-version candidate as the working selections and move to refine.
+export const chooseVersion = mutation({
+  args: { projectId: v.id("projects"), idx: v.number() },
+  handler: async (ctx, { projectId, idx }) => {
+    const project = await requireOwnedProject(ctx, projectId);
+    const plan = await latestPlan(ctx, projectId);
+    const cand = plan?.candidates?.[idx];
+    if (!plan || !cand) throw new Error("That option is no longer available");
+    const segments = await loadOwnedSegments(ctx, project);
+    const byIndex = new Map(segments.map((s) => [s.index, s]));
+    const selections = selectionsFromIndexes(cand.segmentIndexes, byIndex);
+    if (selections.length === 0) throw new Error("That version was empty");
+    await ctx.db.patch(plan._id, {
+      selections,
+      phase: "refining",
+      candidates: [],
+      status: "refining",
+    });
+  },
+});
+
+// ---- internal persisters used by the guided actions ------------------------
+
+export const _resetGuidedPlan = internalMutation({
+  args: { projectId: v.id("projects"), intent: v.string() },
+  handler: async (ctx, { projectId, intent }) => {
+    // One in-progress plan per project: drop any prior plans so getEditPlan and
+    // latestPlan always resolve to this guided run.
+    const prior = await ctx.db
+      .query("editPlans")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    for (const p of prior) await ctx.db.delete(p._id);
+    await ctx.db.insert("editPlans", {
+      projectId,
+      memoryVersion: 0,
+      intent,
+      selections: [],
+      status: "draft",
+      phase: "opening",
+      candidates: [],
+      chosen: {},
+    });
+    await ctx.db.patch(projectId, {
+      status: "planning",
+      xmlError: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const _setCandidates = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    phase: guidedPhase,
+    candidates: v.array(candidateValidator),
+  },
+  handler: async (ctx, { projectId, phase, candidates }) => {
+    const plan = await latestPlan(ctx, projectId);
+    if (!plan) throw new Error("No guided plan in progress");
+    await ctx.db.patch(plan._id, { phase, candidates });
+  },
+});
+
+export const _commitGuidedSelections = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    selections: v.array(selectionValidator),
+    phase: guidedPhase,
+  },
+  handler: async (ctx, { projectId, selections, phase }) => {
+    const plan = await latestPlan(ctx, projectId);
+    if (!plan) throw new Error("No guided plan in progress");
+    await ctx.db.patch(plan._id, { selections, phase });
+  },
+});
+
+export const _finalizeGuided = internalMutation({
+  args: { projectId: v.id("projects"), xmlStorageId: v.id("_storage") },
+  handler: async (ctx, { projectId, xmlStorageId }) => {
+    const plan = await latestPlan(ctx, projectId);
+    if (plan) await ctx.db.patch(plan._id, { status: "exported", phase: "done" });
     await ctx.db.patch(projectId, {
       xmlStorageId,
       status: "ready",

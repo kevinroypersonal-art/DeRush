@@ -11,6 +11,7 @@ export default defineSchema({
     ownerId: v.string(), // Clerk user id
     name: v.string(),
     style: v.optional(v.string()), // legacy free-text brief (the stack carries style now)
+    brief: v.optional(v.string()), // optional per-video brief for THIS edit (universal, style-agnostic)
     stackId: v.optional(v.id("derushStacks")), // which Derush Stack drives this project
     status: v.optional(
       v.union(
@@ -18,6 +19,7 @@ export default defineSchema({
         v.literal("uploaded"), // SRT stored, not parsed
         v.literal("parsing"),
         v.literal("parsed"), // segments ready
+        v.literal("planning"), // guided flow in progress (proposing/choosing)
         v.literal("generating"), // pipeline running
         v.literal("ready"), // XMEML produced
         v.literal("error")
@@ -103,6 +105,35 @@ export default defineSchema({
       v.literal("draft"),
       v.literal("refining"),
       v.literal("exported")
+    ),
+    // ---- guided-flow working state (genre-neutral). Optional so the one-shot
+    // "Quick draft" path leaves them unset. The flow advances opening → closing
+    // → versions → refining → done, mutating a single editPlan row. ----
+    phase: v.optional(
+      v.union(
+        v.literal("opening"),
+        v.literal("closing"),
+        v.literal("versions"),
+        v.literal("refining"),
+        v.literal("done")
+      )
+    ),
+    // Transient candidates for the current step. segmentIndexes are raw cue
+    // indices (the integrity invariant: we only ever reference existing cues).
+    candidates: v.optional(
+      v.array(
+        v.object({
+          segmentIndexes: v.array(v.number()),
+          rationale: v.string(),
+        })
+      )
+    ),
+    // The validated picks that constrain later steps.
+    chosen: v.optional(
+      v.object({
+        opening: v.optional(v.array(v.number())),
+        closing: v.optional(v.array(v.number())),
+      })
     ),
   }).index("by_project", ["projectId"]),
 
