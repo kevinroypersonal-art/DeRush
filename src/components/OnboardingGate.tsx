@@ -6,25 +6,26 @@ import { useQuery } from "convex/react";
 import { Authenticated, AuthLoading } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-// Redirects users who haven't finished onboarding to /onboarding. Wraps the
-// dashboard so the agents are set up before the user reaches their projects.
+// Sends users without a finished Derush Stack to /onboarding. Wraps the
+// dashboard so the stack exists before the user reaches their projects.
 function Gate({ children }: { children: ReactNode }) {
   const state = useQuery(api.onboarding.getState);
   const router = useRouter();
 
-  const completed = state?.profile?.status === "completed";
+  // Ready = onboarding completed AND a Derush Stack exists. No stack → onboarding.
+  const ready = !!state?.stack && state?.profile?.status === "completed";
 
   useEffect(() => {
     // state === undefined while the query loads; only redirect once we know.
-    if (state !== undefined && !completed) {
+    if (state !== undefined && !ready) {
       router.replace("/onboarding");
     }
-  }, [state, completed, router]);
+  }, [state, ready, router]);
 
   if (state === undefined) {
     return <p className="text-sm text-neutral-500">Loading…</p>;
   }
-  if (!completed) {
+  if (!ready) {
     return <p className="text-sm text-neutral-500">Redirecting…</p>;
   }
   return <>{children}</>;
