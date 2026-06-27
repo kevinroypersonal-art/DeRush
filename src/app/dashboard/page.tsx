@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
+import { OnboardingGate } from "@/components/OnboardingGate";
 
 export default function DashboardPage() {
   return (
@@ -20,7 +21,9 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <ProjectsDashboard />
+      <OnboardingGate>
+        <ProjectsDashboard />
+      </OnboardingGate>
     </div>
   );
 }
