@@ -21,6 +21,12 @@ const TEXT_KEYS = [
   "sentence",
   "utterance",
   "body",
+  "word",
+  "utf8",
+  "punctuated_word",
+  "display",
+  "snippet",
+  "phrase",
 ];
 const START_KEYS = [
   "startms",
@@ -28,16 +34,22 @@ const START_KEYS = [
   "start",
   "start_time",
   "starttime",
+  "start_offset",
+  "startoffset",
   "begin",
   "from",
   "offset",
+  "offsetms",
   "tstartms",
   "tstart",
+  "tcin",
   "in",
   "ts",
   "time",
   "timestamp",
 ];
+// Nested arrays whose elements carry the actual words/segments of a cue.
+const TEXT_CONTAINER_KEYS = ["segs", "words", "tokens", "items", "chunks"];
 const END_KEYS = [
   "endms",
   "end_ms",
@@ -52,6 +64,7 @@ const END_KEYS = [
 const DUR_KEYS = [
   "durationms",
   "duration_ms",
+  "ddurationms",
   "duration",
   "dur",
   "length",
@@ -66,7 +79,8 @@ function isMsKey(key: string): boolean {
 // Parse a flexible timecode string into ms: "HH:MM:SS,mmm", "MM:SS.mmm",
 // or a bare seconds value ("12.5"). Returns null if unparseable.
 function strToMs(raw: string, ms: boolean): number | null {
-  const s = raw.trim();
+  // Google STT writes "1.500s"; tolerate a trailing unit.
+  const s = raw.trim().replace(/s$/i, "");
   if (!s) return null;
   const tc = /^(?:(\d{1,2}):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/.exec(s);
   if (tc) {
@@ -81,9 +95,20 @@ function strToMs(raw: string, ms: boolean): number | null {
   return null;
 }
 
+// Coerce a value to milliseconds. Numbers/strings via strToMs; objects via the
+// protobuf-style { seconds, nanos } shape (Google Speech-to-Text).
 function valToMs(v: unknown, ms: boolean): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return ms ? v : v * 1000;
   if (typeof v === "string") return strToMs(v, ms);
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const sec = typeof o.seconds === "number" ? o.seconds : Number(o.seconds);
+    const nanos = typeof o.nanos === "number" ? o.nanos : Number(o.nanos);
+    if (Number.isFinite(sec) || Number.isFinite(nanos)) {
+      return (Number.isFinite(sec) ? sec : 0) * 1000 +
+        (Number.isFinite(nanos) ? nanos / 1e6 : 0);
+    }
+  }
   return null;
 }
 
@@ -125,6 +150,128 @@ function pick(
   return null;
 }
 
+// Pull a cue's text from an item: a direct text field, the first transcript of
+// an `alternatives` list, or the joined words/segments of a nested container.
+function itemText(lc: Map<string, unknown>): string | null {
+  const direct = pick(lc, TEXT_KEYS);
+  if (direct && typeof direct.value === "string" && direct.value.trim()) {
+    return direct.value;
+  }
+  if (lc.has("alternatives")) {
+    const alts = lc.get("alternatives");
+    if (Array.isArray(alts) && alts[0] && typeof alts[0] === "object") {
+      const t = pick(lcKeyMap(alts[0] as Record<string, unknown>), TEXT_KEYS);
+      if (t && typeof t.value === "string" && t.value.trim()) return t.value;
+    }
+  }
+  for (const k of TEXT_CONTAINER_KEYS) {
+    const arr = lc.get(k);
+    if (!Array.isArray(arr)) continue;
+    const parts = arr
+      .map((el) => {
+        if (typeof el === "string") return el;
+        if (el && typeof el === "object") {
+          const t = pick(lcKeyMap(el as Record<string, unknown>), TEXT_KEYS);
+          return t && typeof t.value === "string" ? t.value : "";
+        }
+        return "";
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join(" ");
+  }
+  return null;
+}
+
+// First/last timed entry of a nested word/segment container (for shapes that put
+// the text on the item but the timings only on its words).
+function containerTime(
+  lc: Map<string, unknown>,
+  keys: string[],
+  fromEnd: boolean
+): number | null {
+  for (const k of TEXT_CONTAINER_KEYS) {
+    const arr = lc.get(k);
+    if (!Array.isArray(arr)) continue;
+    const order = fromEnd ? [...arr].reverse() : arr;
+    for (const el of order) {
+      if (el && typeof el === "object") {
+        const f = pick(lcKeyMap(el as Record<string, unknown>), keys);
+        if (f) {
+          const v = valToMs(f.value, isMsKey(f.key));
+          if (v != null) return v;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Extract one cue from an arbitrary item, or null if it has no text+start.
+function cueFromItem(
+  item: unknown
+): { startMs: number; endMs: number | null; text: string } | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const lc = lcKeyMap(item as Record<string, unknown>);
+
+  const text = itemText(lc);
+  if (text == null || clean(text) === "") return null;
+
+  const sf = pick(lc, START_KEYS);
+  let startMs = sf ? valToMs(sf.value, isMsKey(sf.key)) : null;
+  if (startMs == null) startMs = containerTime(lc, START_KEYS, false);
+  if (startMs == null) return null;
+
+  const ef = pick(lc, END_KEYS);
+  let endMs = ef ? valToMs(ef.value, isMsKey(ef.key)) : null;
+  if (endMs == null) {
+    const df = pick(lc, DUR_KEYS);
+    const d = df ? valToMs(df.value, isMsKey(df.key)) : null;
+    if (d != null) endMs = startMs + d;
+  }
+  if (endMs == null) endMs = containerTime(lc, END_KEYS, true);
+
+  return { startMs, endMs, text };
+}
+
+// Recursively locate the array of cue-like objects anywhere in the JSON, so we
+// don't depend on a fixed top-level shape (Whisper, YouTube json3, Google STT,
+// Deepgram, AssemblyAI, plain arrays… all converge here).
+const CONTAINER_HINT_KEYS = [
+  "segments",
+  "cues",
+  "results",
+  "items",
+  "transcript",
+  "events",
+  "monologues",
+  "utterances",
+  "words",
+];
+
+function findCueArray(node: unknown, depth = 0): unknown[] | null {
+  if (node == null || depth > 6) return null;
+  if (Array.isArray(node)) {
+    if (node.some((el) => cueFromItem(el) != null)) return node;
+    for (const el of node) {
+      const found = findCueArray(el, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof node === "object") {
+    const lc = lcKeyMap(node as Record<string, unknown>);
+    for (const k of CONTAINER_HINT_KEYS) {
+      const v = lc.get(k);
+      if (Array.isArray(v) && v.some((el) => cueFromItem(el) != null)) return v;
+    }
+    for (const v of Object.values(node as Record<string, unknown>)) {
+      const found = findCueArray(v, depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function parseJsonTranscript(input: string): ParsedCue[] {
   let data: unknown;
   try {
@@ -132,42 +279,36 @@ function parseJsonTranscript(input: string): ParsedCue[] {
   } catch {
     throw new Error("Could not read the JSON transcript.");
   }
-  let arr: unknown;
-  if (Array.isArray(data)) {
-    arr = data;
-  } else if (data && typeof data === "object") {
-    const o = data as Record<string, unknown>;
-    arr =
-      o.segments ?? o.cues ?? o.results ?? o.items ?? o.transcript ?? o.events;
-  }
-  if (!Array.isArray(arr)) {
+  const arr = findCueArray(data);
+  if (!arr) {
     throw new Error(
-      "JSON transcript needs a list of cues (top-level array or a segments/cues field)."
+      "Couldn't find timecoded text in the JSON. Each entry needs some text and a start time."
     );
   }
   const cues: ParsedCue[] = [];
   for (const it of arr) {
-    if (!it || typeof it !== "object") continue;
-    const lc = lcKeyMap(it as Record<string, unknown>);
-    const textField = pick(lc, TEXT_KEYS);
-    if (!textField || typeof textField.value !== "string") continue;
-    const startField = pick(lc, START_KEYS);
-    if (!startField) continue;
-    const startMs = valToMs(startField.value, isMsKey(startField.key));
-    if (startMs == null) continue;
-    const endField = pick(lc, END_KEYS);
-    let endMs = endField ? valToMs(endField.value, isMsKey(endField.key)) : null;
-    if (endMs == null) {
-      const durField = pick(lc, DUR_KEYS);
-      const dur = durField ? valToMs(durField.value, isMsKey(durField.key)) : null;
-      if (dur != null) endMs = startMs + dur;
-    }
-    finalizeCue(cues, startMs, endMs, textField.value);
+    const c = cueFromItem(it);
+    if (c) finalizeCue(cues, c.startMs, c.endMs, c.text);
   }
   if (cues.length === 0) {
     throw new Error("No timecoded text found in the JSON transcript.");
   }
-  return cues;
+  return rescaleIfImplausible(cues);
+}
+
+// Numeric times on plainly-named keys (start/end) are ambiguous: seconds or
+// milliseconds? We assume seconds. If that yields a physically impossible
+// timeline (> 24h), the values were almost certainly milliseconds — rescale.
+// This never fires on legitimate ≤24h second-based data.
+const MAX_PLAUSIBLE_MS = 24 * 3600 * 1000;
+function rescaleIfImplausible(cues: ParsedCue[]): ParsedCue[] {
+  const maxEnd = cues.reduce((m, c) => Math.max(m, c.endMs), 0);
+  if (maxEnd <= MAX_PLAUSIBLE_MS) return cues;
+  return cues.map((c) => ({
+    ...c,
+    startMs: Math.round(c.startMs / 1000),
+    endMs: Math.round(c.endMs / 1000),
+  }));
 }
 
 // ---- CSV / TSV ------------------------------------------------------------
@@ -248,7 +389,7 @@ function parseCsvTranscript(input: string): ParsedCue[] {
   if (cues.length === 0) {
     throw new Error("No timecoded rows found in the CSV transcript.");
   }
-  return cues;
+  return rescaleIfImplausible(cues);
 }
 
 // ---- Plain TXT with leading timecodes -------------------------------------
